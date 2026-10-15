@@ -1,0 +1,18 @@
+DirectoryIndex index.html
+Options -Indexes
+
+# Les routes React reviennent vers index.html ; un asset absent reste une 404.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_URI} !\.[^/]+$
+  RewriteRule ^ index.html [END]
+</IfModule>
+
+<IfModule mod_headers.c>
+  <FilesMatch "^(index\.html|sw\.js|manifest\.webmanifest)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+  Header always set X-Content-Type-Options "nosniff"
+</IfModule>

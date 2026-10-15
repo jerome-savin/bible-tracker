@@ -1,0 +1,64 @@
+name: Vérifier et déployer
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bible-tracker-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Tests et compilation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Installer pnpm
+        run: npm install --global pnpm@11.25.0
+      - name: Installer les dépendances verrouillées
+        run: pnpm install --frozen-lockfile
+      - name: Tests unitaires
+        run: pnpm run test
+      - name: Compiler
+        run: pnpm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bible-tracker-dist
+          path: dist/
+          include-hidden-files: true
+          retention-days: 14
+
+  deploy:
+    name: Publier sur Apache
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: bible-tracker-dist
+          path: dist
+      - name: Transférer le site par SSH
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST || 'jsdev.fr' }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER || 'debian' }}
+          DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/var/www/bible-tracker' }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: bash scripts/deploy.sh
+      - name: Vérifier le site public
+        run: |
+          curl --fail --silent --show-error --retry 3 https://lecture.jsdev.fr/ | grep -q 'Au fil des pages'
+          curl --fail --silent --show-error --retry 3 https://lecture.jsdev.fr/lecture | grep -q 'Au fil des pages'
