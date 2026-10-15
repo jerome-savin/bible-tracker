@@ -1,0 +1,1 @@
+export default function Heading({title,text}:{title:string;text:string}){return <div className="page-heading"><div><p className="eyebrow">MON CARNET BIBLIQUE</p><h1>{title}</h1><p>{text}</p></div></div>;}

@@ -1,0 +1,4 @@
+import type {ReadingState,ReadingPlan} from '../domain/models';
+export const plans:ReadingPlan[]=[{id:'canonical',name:'Dans l’ordre de la Bible',status:'available',steps:[]},{id:'chronological',name:'Au fil des événements',status:'planned',steps:[]}];
+export function emptyState():ReadingState{return {schemaVersion:1,userId:crypto.randomUUID(),demo:false,progress:{},events:[]};}
+export function demoState():ReadingState {const s=emptyState();s.demo=true;s.progress={'1:1':Array.from({length:31},(_,i)=>i+1),'1:2':Array.from({length:25},(_,i)=>i+1),'1:3':[1,2,3,4,5,6,7,8]};[0,1,3,5,8,11,15,21].forEach((n,i)=>{const d=new Date();d.setDate(d.getDate()-n);s.events.push({id:crypto.randomUUID(),userId:s.userId,bookId:1,chapter:1,verses:[1,2,3,4,5,6,7,8],occurredAt:d.toISOString(),kind:'lecture'});});return s;}
