@@ -1,6 +1,6 @@
 # Déploiement Apache et GitHub Actions
 
-Préparation locale : aucun changement du VPS n’est effectué par l’ajout de ces fichiers. La publication est désactivée tant que la variable GitHub `DEPLOY_ENABLED` n’est pas égale à `true`.
+La publication sur `main` est activée par défaut après autorisation du premier déploiement. Pour la suspendre, définir la variable du dépôt `DEPLOY_ENABLED=false`.
 
 ## Fonctionnement
 
@@ -42,7 +42,7 @@ Secrets de l’environnement `production` :
 
 Vérifier l’empreinte de la clé hôte avec la console du fournisseur ou un canal SSH déjà fiable. `ssh-keyscan` seul ne prouve pas l’identité du serveur. Pour un port différent de 22, la ligne known_hosts doit utiliser `[hôte]:port`.
 
-Enfin, ajouter la **variable du dépôt** `DEPLOY_ENABLED=true` pour activer la publication. Le workflow utilise ce réglage avant l’accès à l’environnement ; il ne faut donc pas le définir uniquement dans `production`. Lancer ensuite manuellement « Vérifier et déployer » depuis l’onglet Actions, ou pousser sur `main`.
+La publication est activée par défaut sur `main`. La **variable du dépôt** `DEPLOY_ENABLED=false` permet de la suspendre ; supprimer cette variable ou la passer à `true` permet de la reprendre. Le workflow utilise ce réglage avant l’accès à l’environnement ; il ne faut donc pas le définir uniquement dans `production`. Lancer manuellement « Vérifier et déployer » depuis l’onglet Actions, ou pousser sur `main`.
 
 ## Validation après la première publication
 

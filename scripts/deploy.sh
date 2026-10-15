@@ -24,7 +24,7 @@ chmod 600 "$ssh_dir/key" "$ssh_dir/known_hosts"
 export RSYNC_RSH="ssh -i $ssh_dir/key -p $DEPLOY_PORT -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$ssh_dir/known_hosts"
 
 # Le dossier doit être créé et autorisé lors de la préparation du VPS.
-ssh -i "$ssh_dir/key" -p "$DEPLOY_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$ssh_dir/known_hosts" "$DEPLOY_USER@$DEPLOY_HOST" "test -d '$DEPLOY_PATH' && test -w '$DEPLOY_PATH'"
+ssh -i "$ssh_dir/key" -p "$DEPLOY_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$ssh_dir/known_hosts" "$DEPLOY_USER@$DEPLOY_HOST" "command -v rsync >/dev/null || { echo 'rsync absent du VPS'; exit 1; }; test -d '$DEPLOY_PATH' || { echo 'Dossier de publication absent'; exit 1; }; test -w '$DEPLOY_PATH' || { echo 'Dossier de publication non accessible en écriture'; exit 1; }"
 
 # Publier les fichiers hachés avant l’index. Conserver les anciens assets pour
 # les onglets encore ouverts ; aucune suppression distante n’est effectuée.
