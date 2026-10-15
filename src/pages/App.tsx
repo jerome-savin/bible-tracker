@@ -1,21 +1,21 @@
 import {useEffect,useState} from 'react';
 import {NavLink,Route,Routes,Link} from 'react-router-dom';
-import {BookOpen,House,Route as RouteIcon,ChartNoAxesCombined,Settings,ArrowUpRight,Check,ChevronRight,Leaf,CalendarDays,Flame,Target,Download} from 'lucide-react';
+import {BookOpen,House,Route as RouteIcon,ChartNoAxesCombined,Settings,ArrowUpRight,Check,ChevronRight,Leaf,CalendarDays,Flame,Target} from 'lucide-react';
 import {ResponsiveContainer,BarChart,Bar,XAxis,Tooltip} from 'recharts';
 import books from '../data/books.json';
 import {demoState,emptyState,plans} from '../data/demo';
 import {metrics,keyOf} from '../domain/reading';
 import type {ReadingState} from '../domain/models';
-import {IndexedDBReadingRepository} from '../services/repository';
+import {readingRepository as repository} from '../services/readingRepository';
 import {jwLink} from '../services/jw';
 import Reading from './Reading';
 import Heading from '../components/Heading';
-const repository=new IndexedDBReadingRepository();
+import BackupPanel from '../components/BackupPanel';
 const navigation=[['/','Accueil',House],['/lecture','Ma lecture',BookOpen],['/parcours','Parcours',RouteIcon],['/statistiques','Statistiques',ChartNoAxesCombined],['/parametres','Paramètres',Settings]] as const;
 export default function App(){
  const [state,setState]=useState<ReadingState|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false);
- useEffect(()=>{repository.load().then(s=>setState(s??demoState())).catch(()=>setError('Le stockage local est indisponible. Autorisez IndexedDB puis rechargez la page.'));},[]);
- async function save(next:ReadingState){setBusy(true);try{await repository.save(next);setState(next);setError('');}catch{setError('Enregistrement impossible. Votre modification n’a pas été appliquée.');}finally{setBusy(false);}}
+ useEffect(()=>{repository.load().then(s=>setState(s??demoState())).catch(error=>setError(`${error instanceof Error?error.message:'Le stockage local est indisponible.'} Les données existantes n’ont pas été supprimées.`));},[]);
+ async function save(next:ReadingState){setBusy(true);try{const saved=await repository.save(next);setState(saved);setError('');}catch(error){setError(`${error instanceof Error?error.message:'Enregistrement impossible.'} Votre modification n’a pas été appliquée.`);}finally{setBusy(false);}}
  if(!state)return <main className="loading">{error||'Ouverture de votre carnet…'}</main>;
  const m=metrics(state,books);
  const finished=m.chapters===1189;
@@ -25,7 +25,7 @@ export default function App(){
  <Route path="/lecture" element={<Reading state={state} save={save} busy={busy}/>}/>
  <Route path="/parcours" element={<><Heading title="Choisissez votre chemin" text="Deux façons de parcourir la Bible, une seule progression."/><div className="lower-grid">{plans.map(p=><article className="card" key={p.id}><RouteIcon/><h2>{p.name}</h2><p>{p.status==='available'?'Les 66 livres, de la Genèse à la Révélation.':'Passages entrelacés : référentiel chronologique à intégrer et vérifier lors d’une prochaine phase.'}</p>{p.status==='available'?<Link className="button" to="/lecture">Continuer ce parcours <ChevronRight size={16}/></Link>:<span className="badge">À venir</span>}</article>)}</div></>}/>
  <Route path="/statistiques" element={<><Heading title="Votre lecture en perspective" text="Des repères pour avancer sereinement."/><div className="stats-grid"><article className="card"><span>Rythme moyen sur 30 jours</span><strong>{m.pace.toLocaleString('fr-FR',{maximumFractionDigits:1})}</strong><small>versets lus par jour, relectures comprises</small></article><article className="card"><span>Fin estimée au rythme actuel</span><h2>{m.finish?m.finish.toLocaleDateString('fr-FR'):'À découvrir'}</h2><small>Projection indicative, relectures comprises.</small></article><article className="card"><span>Régularité sur 30 jours</span><strong>{m.days30}<small> / 30 jours</small></strong></article></div><article className="card chart"><h2>Vos jours de lecture</h2><ResponsiveContainer width="100%" height={230}><BarChart data={m.activity}><XAxis dataKey="label" tick={{fontSize:11}} interval={5}/><Tooltip formatter={(v)=>[v?'Lecture enregistrée':'Pas de lecture','Activité']}/><Bar dataKey="active" fill="#8b76ae" radius={[5,5,0,0]}/></BarChart></ResponsiveContainer></article></>}/>
- <Route path="/parametres" element={<><Heading title="Votre carnet, vos repères" text="Les données restent sur cet appareil. Aucune connexion à Supabase."/><article className="card settings"><h2>Votre espace personnel</h2><p>{state.demo?'Vous explorez des données fictives. Commencer un carnet vide remplace la démonstration.':'Votre carnet personnel est actif.'}</p>{state.demo&&<button disabled={busy} onClick={()=>save(emptyState())}>Commencer mon carnet vide</button>}<h2>Sauvegarde locale</h2><p>Exportez régulièrement votre carnet pour conserver une copie de vos lectures.</p><button onClick={()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=`bible-tracker-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}}><Download size={17}/> Exporter mon carnet JSON</button><p className="muted">Import JSON et synchronisation prévus dans une prochaine phase.</p><h2>Référentiel et liens</h2><p>66 livres · versification du référentiel bkuhl (31 102 versets). Les différences avec l’édition NWT restent à vérifier avant usage définitif. Aucun texte biblique n’est stocké.</p><a href="https://github.com/bkuhl/bible-verse-counts-per-chapter" target="_blank" rel="noreferrer">Consulter la source <ArrowUpRight size={14}/></a><p>Liens JW Library : format testé sur Android par le porteur du projet ; iPad à vérifier.</p></article></>}/>
+ <Route path="/parametres" element={<><Heading title="Votre carnet, vos repères" text="Les données restent sur cet appareil. Aucune connexion à Supabase."/><article className="card settings"><h2>Votre espace personnel</h2><p>{state.demo?'Vous explorez des données fictives. Commencer un carnet vide remplace la démonstration.':'Votre carnet personnel est actif.'}</p>{state.demo&&<button disabled={busy} onClick={()=>save(emptyState())}>Commencer mon carnet vide</button>}<BackupPanel repository={repository} state={state} onRestored={setState}/><h2>Référentiel et liens</h2><p>66 livres · versification du référentiel bkuhl (31 102 versets). Les différences avec l’édition NWT restent à vérifier avant usage définitif. Aucun texte biblique n’est stocké.</p><a href="https://github.com/bkuhl/bible-verse-counts-per-chapter" target="_blank" rel="noreferrer">Consulter la source <ArrowUpRight size={14}/></a><p>Liens JW Library : format testé sur Android par le porteur du projet ; iPad à vérifier.</p></article></>}/>
  <Route path="*" element={<><Heading title="Cette page n’existe pas" text="Retrouvez votre carnet depuis l’accueil."/><Link to="/">Retour à l’accueil</Link></>}/>
  </Routes><footer>Au fil des pages <span>·</span> Cultivez votre lecture, à votre rythme.</footer></main></div></div>;
 }

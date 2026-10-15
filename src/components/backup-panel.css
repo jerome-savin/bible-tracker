@@ -1,0 +1,4 @@
+.backup-panel{margin-top:28px}
+.backup-panel input[type=file]{width:100%;min-width:0;max-width:100%;font-size:12px}
+.backup-panel input[type=checkbox]{min-height:18px;width:18px;height:18px;vertical-align:middle;margin-right:8px}
+.backup-panel ul{padding-left:20px;font-size:12px;line-height:1.8;color:#82778d;margin:12px 0}
