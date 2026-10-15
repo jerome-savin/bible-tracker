@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Rendre les erreurs consultables dans les annotations GitHub.
+run_checked() {
+  local output
+  if output=$("$@" 2>&1); then
+    printf '%s\n' "$output"
+  else
+    while IFS= read -r line; do
+      printf '::error::%s\n' "$line"
+    done <<< "$output"
+    return 1
+  fi
+}
+
 : "${DEPLOY_HOST:?Adresse SSH manquante}"
 : "${DEPLOY_USER:?Utilisateur SSH manquant}"
 : "${DEPLOY_PATH:?Dossier de destination manquant}"
@@ -24,10 +37,10 @@ chmod 600 "$ssh_dir/key" "$ssh_dir/known_hosts"
 export RSYNC_RSH="ssh -i $ssh_dir/key -p $DEPLOY_PORT -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$ssh_dir/known_hosts"
 
 # Le dossier doit être créé et autorisé lors de la préparation du VPS.
-ssh -i "$ssh_dir/key" -p "$DEPLOY_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$ssh_dir/known_hosts" "$DEPLOY_USER@$DEPLOY_HOST" "command -v rsync >/dev/null || { echo 'rsync absent du VPS'; exit 1; }; test -d '$DEPLOY_PATH' || { echo 'Dossier de publication absent'; exit 1; }; test -w '$DEPLOY_PATH' || { echo 'Dossier de publication non accessible en écriture'; exit 1; }"
+run_checked ssh -i "$ssh_dir/key" -p "$DEPLOY_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$ssh_dir/known_hosts" "$DEPLOY_USER@$DEPLOY_HOST" "command -v rsync >/dev/null || { echo 'rsync absent du VPS'; exit 1; }; test -d '$DEPLOY_PATH' || { echo 'Dossier de publication absent'; exit 1; }; test -w '$DEPLOY_PATH' || { echo 'Dossier de publication non accessible en écriture'; exit 1; }"
 
 # Publier les fichiers hachés avant l’index. Conserver les anciens assets pour
 # les onglets encore ouverts ; aucune suppression distante n’est effectuée.
-rsync -rltz --chmod=D755,F644 --exclude=index.html --exclude=sw.js dist/ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
-rsync -rltz --chmod=D755,F644 dist/index.html "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
-rsync -rltz --chmod=D755,F644 dist/sw.js "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
+run_checked rsync -rltz --chmod=D755,F644 --exclude=index.html --exclude=sw.js dist/ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
+run_checked rsync -rltz --chmod=D755,F644 dist/index.html "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
+run_checked rsync -rltz --chmod=D755,F644 dist/sw.js "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
