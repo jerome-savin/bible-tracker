@@ -38,27 +38,27 @@ describe('Navigation biblique par URL',()=>{
 describe('Rendu des interfaces connectées au lot A',()=>{
  it('conserve un nom accessible sur la navigation réduite aux icônes',()=>{
   const html=renderToStaticMarkup(<MemoryRouter><Navigation readingUrl="/lecture?livre=2&chapitre=2"/></MemoryRouter>);
-  for(const name of ['Accueil','Ma lecture','Parcours','Statistiques','Paramètres'])expect(html).toContain(`aria-label="${name}"`);
+  for(const name of ['Accueil','Lecture','Statistiques'])expect(html).toContain(`aria-label="${name}"`);
  });
  it('branche le bouton de l’Accueil au premier trou et à son segment exact',()=>{
   const state=record(emptyState(),{bookId:1,chapter:1,verses:[1,2,5]},'lecture',31);
-  const html=renderToStaticMarkup(<MemoryRouter><Dashboard state={state}/></MemoryRouter>);
-  expect(html).toContain('/lecture?livre=1&amp;chapitre=1&amp;verset=3&amp;fin=4');expect(html).toContain('Continuer ma lecture');expect(state.events).toHaveLength(1);
+  const html=renderToStaticMarkup(<MemoryRouter><Dashboard state={state} change={vi.fn()} busy={false}/></MemoryRouter>);
+  expect(html).toContain('/lecture?livre=1&amp;chapitre=1&amp;verset=3&amp;fin=4');expect(html).toContain('Marquer comme lu');expect(state.events).toHaveLength(1);
  });
  it('affiche une fin de parcours adaptée sans nouvelle lecture suggérée',()=>{
   const state=emptyState();books.forEach(b=>b.chapters.forEach((max,i)=>state.progress[`${b.id}:${i+1}`]=selectRange(1,max,max)));
-  const html=renderToStaticMarkup(<MemoryRouter><Dashboard state={state}/></MemoryRouter>);
-  expect(html).toContain('Toute la Bible est parcourue.');expect(html).not.toContain('Continuer ma lecture');
+  const html=renderToStaticMarkup(<MemoryRouter><Dashboard state={state} change={vi.fn()} busy={false}/></MemoryRouter>);
+  expect(html).toContain('Toute la Bible est parcourue.');expect(html).not.toContain('Marquer comme lu');
  });
- it('met en évidence le segment du lien direct sans validation automatique',()=>{
+ it('ouvre le lien direct sans sélection temporaire ni validation automatique',()=>{
   const state=emptyState(),save=vi.fn(async()=>state),visit=vi.fn();
-  const html=renderToStaticMarkup(<MemoryRouter initialEntries={['/lecture?livre=1&chapitre=3&verset=9&fin=11']}><Reading state={state} save={save} busy={false} onVisit={visit}/></MemoryRouter>);
-  expect(html).toMatch(/aria-label="Verset 9, non lu" aria-pressed="true"/);expect(html).toMatch(/aria-label="Verset 12, non lu" aria-pressed="false"/);
+  const html=renderToStaticMarkup(<MemoryRouter initialEntries={['/lecture?livre=1&chapitre=3&verset=9&fin=11']}><Reading state={state} change={save} busy={false} onVisit={visit}/></MemoryRouter>);
+  expect(html).toMatch(/aria-label="Verset 9, non lu" aria-pressed="false" aria-current="location"/);expect(html).toMatch(/aria-label="Verset 12, non lu" aria-pressed="false"/);
   expect(save).not.toHaveBeenCalled();expect(state.events).toEqual([]);
  });
  it('rend une URL invalide sans sauvegarde ni préférence inventée',()=>{
   const state=emptyState(),save=vi.fn(async()=>state),visit=vi.fn();
-  const html=renderToStaticMarkup(<MemoryRouter initialEntries={['/lecture?livre=999&chapitre=1']}><Reading state={state} save={save} busy={false} onVisit={visit}/></MemoryRouter>);
+  const html=renderToStaticMarkup(<MemoryRouter initialEntries={['/lecture?livre=999&chapitre=1']}><Reading state={state} change={save} busy={false} onVisit={visit}/></MemoryRouter>);
   expect(html).toContain('Ce passage est introuvable');expect(save).not.toHaveBeenCalled();expect(visit).not.toHaveBeenCalled();
  });
 });
