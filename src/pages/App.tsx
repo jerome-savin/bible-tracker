@@ -1,31 +1,56 @@
-import {useEffect,useState} from 'react';
-import {NavLink,Route,Routes,Link} from 'react-router-dom';
-import {BookOpen,House,Route as RouteIcon,ChartNoAxesCombined,Settings,ArrowUpRight,Check,ChevronRight,Leaf,CalendarDays,Flame,Target} from 'lucide-react';
-import {ResponsiveContainer,BarChart,Bar,XAxis,Tooltip} from 'recharts';
-import books from '../data/books.json';
-import {demoState,emptyState,plans} from '../data/demo';
-import {metrics,keyOf} from '../domain/reading';
-import type {ReadingState} from '../domain/models';
-import {readingRepository as repository} from '../services/readingRepository';
-import {jwLink} from '../services/jw';
-import Reading from './Reading';
-import Heading from '../components/Heading';
-import BackupPanel from '../components/BackupPanel';
-const navigation=[['/','Accueil',House],['/lecture','Ma lecture',BookOpen],['/parcours','Parcours',RouteIcon],['/statistiques','Statistiques',ChartNoAxesCombined],['/parametres','Paramètres',Settings]] as const;
-export default function App(){
- const [state,setState]=useState<ReadingState|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false);
- useEffect(()=>{repository.load().then(s=>setState(s??demoState())).catch(error=>setError(`${error instanceof Error?error.message:'Le stockage local est indisponible.'} Les données existantes n’ont pas été supprimées.`));},[]);
- async function save(next:ReadingState){setBusy(true);try{const saved=await repository.save(next);setState(saved);setError('');}catch(error){setError(`${error instanceof Error?error.message:'Enregistrement impossible.'} Votre modification n’a pas été appliquée.`);}finally{setBusy(false);}}
- if(!state)return <main className="loading">{error||'Ouverture de votre carnet…'}</main>;
- const m=metrics(state,books);
- const finished=m.chapters===1189;
- const next=books.flatMap(b=>b.chapters.map((max,i)=>({book:b,chapter:i+1,max}))).find(p=>(state.progress[keyOf(p.book.id,p.chapter)]?.length??0)<p.max)??{book:books[0],chapter:1,max:31};
- return <div className="shell"><aside><Link className="brand" to="/"><span className="brand-icon"><BookOpen/></span><span>Au fil des pages<small>MON CARNET BIBLIQUE</small></span></Link><p className="nav-label">MON ESPACE</p><nav>{navigation.map(([url,label,Icon])=><NavLink key={url} to={url} end={url==='/'}><Icon size={20}/><span>{label}</span></NavLink>)}</nav><div className="sidebar-note"><Leaf size={23}/><p>Un peu chaque jour,<br/>un chemin qui grandit.</p><small>À votre rythme, tout simplement.</small></div><div className="local"><span/> Enregistré sur cet appareil</div></aside><div className="workspace"><header><span>Votre espace de lecture personnel</span><span className="avatar">M</span></header><main>{state.demo&&<div className="demo">Mode démonstration · Les lectures affichées sont fictives. <Link to="/parametres">Commencer ma lecture <ChevronRight size={14}/></Link></div>}{error&&<p role="alert" className="error">{error}</p>}<Routes>
- <Route path="/" element={<><div className="page-heading"><div><p className="eyebrow">UN MOMENT POUR L’ESSENTIEL</p><h1>Chaque lecture est un pas.</h1><p>Retrouvez votre fil, et continuez à votre rythme.</p></div><span className="date"><CalendarDays size={17}/>{new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}</span></div><section className="hero"><div><span className="pill"><span/> {finished?'VOTRE PROCHAINE RELECTURE':'VOTRE PROCHAINE LECTURE'}</span><h2>{next.book.name} {next.chapter}</h2><p>Versets 1 à {next.max} <span>·</span> Ordre biblique classique</p><p className="hero-description">Un nouveau chapitre vous attend.<br/>Prenez le temps de le découvrir.</p><div className="hero-actions"><Link className="button" to={`/lecture?livre=${next.book.id}&chapitre=${next.chapter}`}>Reprendre ma lecture <ChevronRight size={18}/></Link><a href={jwLink(next.book.id,next.chapter,1,next.max)} target="_blank" rel="noreferrer">Ouvrir dans JW Library <ArrowUpRight size={16}/></a></div></div><div className="book-art" aria-hidden="true"><div className="halo"/><BookOpen strokeWidth={0.8}/><span>une page à la fois</span></div></section><div className="section-title"><h2>Votre chemin jusqu’ici</h2><span>Chaque pas compte.</span></div><div className="stats-grid"><article className="card progress-card"><span className="stat-icon"><BookOpen size={19}/></span><span>Progression de la Bible</span><strong>{m.percent.toLocaleString('fr-FR',{maximumFractionDigits:1})}<small> %</small></strong><div className="track"><i style={{width:`${m.percent}%`}}/></div><small>{m.verses.toLocaleString('fr-FR')} / {m.total.toLocaleString('fr-FR')} versets</small></article><article className="card"><span className="stat-icon green"><Check size={19}/></span><span>Chapitres terminés</span><strong>{m.chapters}<small> / 1 189</small></strong><small>Un chapitre, une nouvelle découverte.</small></article><article className="card"><span className="stat-icon amber"><Flame size={19}/></span><span>Votre régularité</span><strong>{m.days7}<small> jours sur 7</small></strong><small>{m.days30} jours de lecture sur les 30 derniers jours</small></article></div><div className="lower-grid"><article className="card"><div className="section-title"><h2>Une habitude qui prend racine</h2><span>7 derniers jours</span></div><div className="week">{m.activity.slice(-7).map((d,i)=><div key={d.label}><span className={d.active?'day active':'day'}>{d.active?<Check size={19}/>:<span/>}</span><small>{['J−6','J−5','J−4','J−3','J−2','Hier','Auj.'][i]}</small></div>)}</div><p className="muted">L’important, c’est de revenir. Même pour quelques versets.</p></article><article className="card goal"><span className="stat-icon"><Target size={20}/></span><h2>La Bible en une année</h2><p>Un repère pour vous accompagner : environ {Math.ceil(m.total/365)} versets par jour.</p><Link to="/statistiques">Découvrir mon rythme <ChevronRight size={16}/></Link></article></div></>}/>
- <Route path="/lecture" element={<Reading state={state} save={save} busy={busy}/>}/>
- <Route path="/parcours" element={<><Heading title="Choisissez votre chemin" text="Deux façons de parcourir la Bible, une seule progression."/><div className="lower-grid">{plans.map(p=><article className="card" key={p.id}><RouteIcon/><h2>{p.name}</h2><p>{p.status==='available'?'Les 66 livres, de la Genèse à la Révélation.':'Passages entrelacés : référentiel chronologique à intégrer et vérifier lors d’une prochaine phase.'}</p>{p.status==='available'?<Link className="button" to="/lecture">Continuer ce parcours <ChevronRight size={16}/></Link>:<span className="badge">À venir</span>}</article>)}</div></>}/>
- <Route path="/statistiques" element={<><Heading title="Votre lecture en perspective" text="Des repères pour avancer sereinement."/><div className="stats-grid"><article className="card"><span>Rythme moyen sur 30 jours</span><strong>{m.pace.toLocaleString('fr-FR',{maximumFractionDigits:1})}</strong><small>versets lus par jour, relectures comprises</small></article><article className="card"><span>Fin estimée au rythme actuel</span><h2>{m.finish?m.finish.toLocaleDateString('fr-FR'):'À découvrir'}</h2><small>Projection indicative, relectures comprises.</small></article><article className="card"><span>Régularité sur 30 jours</span><strong>{m.days30}<small> / 30 jours</small></strong></article></div><article className="card chart"><h2>Vos jours de lecture</h2><ResponsiveContainer width="100%" height={230}><BarChart data={m.activity}><XAxis dataKey="label" tick={{fontSize:11}} interval={5}/><Tooltip formatter={(v)=>[v?'Lecture enregistrée':'Pas de lecture','Activité']}/><Bar dataKey="active" fill="#8b76ae" radius={[5,5,0,0]}/></BarChart></ResponsiveContainer></article></>}/>
- <Route path="/parametres" element={<><Heading title="Votre carnet, vos repères" text="Les données restent sur cet appareil. Aucune connexion à Supabase."/><article className="card settings"><h2>Votre espace personnel</h2><p>{state.demo?'Vous explorez des données fictives. Commencer un carnet vide remplace la démonstration.':'Votre carnet personnel est actif.'}</p>{state.demo&&<button disabled={busy} onClick={()=>save(emptyState())}>Commencer mon carnet vide</button>}<BackupPanel repository={repository} state={state} onRestored={setState}/><h2>Référentiel et liens</h2><p>66 livres · versification du référentiel bkuhl (31 102 versets). Les différences avec l’édition NWT restent à vérifier avant usage définitif. Aucun texte biblique n’est stocké.</p><a href="https://github.com/bkuhl/bible-verse-counts-per-chapter" target="_blank" rel="noreferrer">Consulter la source <ArrowUpRight size={14}/></a><p>Liens JW Library : format testé sur Android par le porteur du projet ; iPad à vérifier.</p></article></>}/>
- <Route path="*" element={<><Heading title="Cette page n’existe pas" text="Retrouvez votre carnet depuis l’accueil."/><Link to="/">Retour à l’accueil</Link></>}/>
- </Routes><footer>Au fil des pages <span>·</span> Cultivez votre lecture, à votre rythme.</footer></main></div></div>;
+import {lazy,Suspense,useCallback,useEffect,useRef,useState} from 'react';
+import {Link,Route,Routes,useLocation} from 'react-router-dom';
+import type {ReadingPreferences,ReadingRepository,ReadingState} from '../domain/models';
+import {demoState} from '../data/demo';
+import {readingRepository} from '../services/readingRepository';
+import {passageUrl} from '../services/passageNavigation';
+import Navigation from '../components/Navigation';
+import PwaStatus from '../components/PwaStatus';
+import Dashboard from './Dashboard';
+const Reading=lazy(()=>import('./Reading'));
+const Statistics=lazy(()=>import('./Statistics'));
+const Settings=lazy(()=>import('./Settings'));
+const Plans=lazy(()=>import('./Plans'));
+
+export default function App({repository=readingRepository}:{repository?:ReadingRepository}){
+ const [state,setState]=useState<ReadingState|null>(null),[preferences,setPreferences]=useState<ReadingPreferences>({});
+ const [error,setError]=useState(''),[preferenceError,setPreferenceError]=useState(''),[busy,setBusy]=useState(false);
+ const prefs=useRef<ReadingPreferences>({}),queue=useRef(Promise.resolve()),epoch=useRef(0);
+ const location=useLocation();
+ useEffect(()=>{
+  let active=true;
+  void (async()=>{try{
+   let current=await repository.load();if(!active)return;
+   // Sur un nouvel appareil seulement : démonstration identifiée, stable et mémorisable.
+   if(!current)current=await repository.save(demoState());
+   const loaded=await repository.loadPreferences();if(!active)return;
+   prefs.current=loaded;setPreferences(loaded);setState(current);setError('');
+  }catch(e){if(active)setError(`${e instanceof Error?e.message:'Stockage local indisponible.'} Les données existantes sont conservées.`);}})();
+  return()=>{active=false;};
+ },[repository]);
+ useEffect(()=>{document.querySelector<HTMLElement>('#main-content')?.focus();},[location.pathname]);
+ async function save(next:ReadingState){setBusy(true);try{const saved=await repository.save(next);setState(saved);return saved;}finally{setBusy(false);}}
+ const visit=useCallback((passage:NonNullable<ReadingPreferences['lastPassage']>)=>{
+  const generation=epoch.current;const next={...prefs.current,lastPassage:passage};prefs.current=next;setPreferences(next);
+  queue.current=queue.current.catch(()=>{}).then(async()=>{if(generation!==epoch.current)return;await repository.savePreferences(next);setPreferenceError('');}).catch(e=>setPreferenceError(`Dernier passage non mémorisé : ${e instanceof Error?e.message:'écriture indisponible'}`));
+ },[repository]);
+ function restored(next:ReadingState){
+  epoch.current++;setState(next);prefs.current={};setPreferences({});setPreferenceError('');
+  void repository.loadPreferences().then(loaded=>{prefs.current=loaded;setPreferences(loaded);}).catch(()=>setPreferenceError('Les préférences n’ont pas pu être rechargées.'));
+ }
+ if(!state)return <main className="loading" role="status">{error||'Ouverture de votre carnet…'}</main>;
+ const readingUrl=preferences.lastPassage?passageUrl(preferences.lastPassage):'/lecture';
+ return <><a className="skip-link" href="#main-content">Aller au contenu</a><div className="shell"><Navigation readingUrl={readingUrl}/><div className="workspace"><header><span>Votre espace de lecture personnel</span><span className="avatar" aria-hidden="true">M</span></header><main id="main-content" tabIndex={-1}>
+  {state.demo&&<div className="demo">Mode démonstration · Les lectures affichées sont fictives. <Link to="/parametres">Commencer mon carnet</Link></div>}
+  {preferenceError&&<p className="error" role="alert">{preferenceError}</p>}
+  <Suspense fallback={<p role="status">Ouverture de cet espace…</p>}><Routes>
+   <Route path="/" element={<Dashboard state={state}/>}/>
+   <Route path="/lecture" element={<Reading state={state} save={save} busy={busy} lastPassage={preferences.lastPassage} onVisit={visit}/>}/>
+   <Route path="/statistiques" element={<Statistics state={state}/>}/>
+   <Route path="/parametres" element={<Settings state={state} repository={repository} save={save} onRestored={restored} busy={busy}/>}/>
+   <Route path="/parcours" element={<Plans/>}/>
+   <Route path="*" element={<><h1>Cette page n’existe pas</h1><Link to="/">Retour à l’accueil</Link></>}/>
+  </Routes></Suspense>
+  <PwaStatus busy={busy}/><footer>Au fil des pages <span>·</span> Cultivez votre lecture, à votre rythme.</footer>
+ </main></div></div></>;
 }
